@@ -54,6 +54,7 @@ void empty_array(local_variables current_variables[], int size);
 %token IF
 %token ELSE
 %token FOR 
+%token RETURN
 
 %token AND        // token for keyword printf
 %token OR        // token for keyword printf
@@ -97,15 +98,17 @@ LAST_ASSIGNMENT: ',' RECURSIVE_IDENTIF              {sprintf(temp,"%s",$2.code);
                                                 $$.code = gen_code (temp) ;}
             ;
 
-function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); i = 0; empty_array(current_variables, 100);}'(' param ')' '{' axiom_func '}'  { printf("(defun %s (%s)%s)\n",$1.code, $4.code, $7.code); } function_section { ; }
+function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); i = 0; empty_array(current_variables, 100);}'(' param ')' '{' axiom_func return_statement'}'  { printf("(defun %s (%s)%s %s)\n",$1.code, $4.code, $7.code, $8.code); } function_section { ; }
             |       { ; }
             ;
+return_statement:   RETURN expression ';' {sprintf(temp,"%s", $2.code);
+                                            $$.code = gen_code(temp);}
 param:      param_seq       { sprintf(temp,"%s", $1.code); 
                             $$.code = gen_code (temp) ;}
             |               {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
-param_seq:  INTEGER IDENTIF rec_param           { sprintf(temp,"int %s %s", $2.code, $3.code); 
+param_seq:  INTEGER IDENTIF rec_param           { sprintf(temp,"%s %s", $2.code, $3.code); 
                                                 $$.code = gen_code (temp) ;}
             ;
 rec_param:  ',' param_seq           { sprintf(temp,", %s", $2.code); 
@@ -128,7 +131,7 @@ sentence:   INTEGER IDENTIF '=' expression   ';'      {
                                                         current_variables[i].identifier = $2.code;
                                                         i = i + 1; 
                                                         $$.code = gen_code (temp) ; }
-            |IDENTIF '=' expression   ';'      {if(search_variable(current_variables,$1.code) == 0){
+            | IDENTIF '=' expression   ';'      {if(search_variable(current_variables,$1.code) == 0){
                                                 sprintf (temp, "(setf %s %s)", $1.code, $3.code) ;
             } else{
                 sprintf (temp, "(setf %s_%s %s)", fun_name,$1.code, $3.code) ;
@@ -330,6 +333,7 @@ t_keyword keywords [] = {     // define the keywords
     "if",           IF,
     "else",         ELSE,
     "for",          FOR,
+    "return",       RETURN,
     NULL,          0          // 0 to mark the end of the table
 } ;
 
