@@ -14,7 +14,6 @@ char *my_malloc (int) ;
 char *gen_code (char *) ;
 char *int_to_string (int) ;
 char *char_to_string (char) ;
-
 char temp [2048] ;
 char fun_name[256];
 // Definitions for explicit attributes
@@ -31,11 +30,16 @@ struct func_attr {
 
 struct func_attr current_func;
 
-struct local_variables{
+typedef struct local_variables{
     char * identifier ;
     int val ;
-}
+} local_variables;
+int i = 0;
+struct local_variables current_variables[100];
+int search_variable(local_variables current_variables[], char *name);
+void empty_array(local_variables current_variables[], int size);
 %}
+
 
 // Definitions for explicit attributes
 
@@ -93,7 +97,7 @@ LAST_ASSIGNMENT: ',' RECURSIVE_IDENTIF              {sprintf(temp,"%s",$2.code);
                                                 $$.code = gen_code (temp) ;}
             ;
 
-function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); struct local_variables current_variables; }'(' param ')' '{' axiom_func '}'  { printf("(defun %s (%s)%s)\n",$1.code, $4.code, $7.code); } function_section { ; }
+function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); i = 0; empty_array(current_variables, 100);}'(' param ')' '{' axiom_func '}'  { printf("(defun %s (%s)%s)\n",$1.code, $4.code, $7.code); } function_section { ; }
             |       { ; }
             ;
 param:      param_seq       { sprintf(temp,"%s", $1.code); 
@@ -109,9 +113,9 @@ rec_param:  ',' param_seq           { sprintf(temp,", %s", $2.code);
             |                       {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
-Main_declaration:  {sprintf(fun_name,"main");} '(' ')' '{' axiom_func '}'     { printf ("(defun main ()\n%s)\n", $5.code) ;}
+Main_declaration:  {sprintf(fun_name,"main");  i = 0; empty_array(current_variables, 100);} '(' ')' '{' axiom_func '}'     { printf ("(defun main ()\n%s)\n", $5.code) ;}
             ;
-axiom_func:   sentence                    { sprintf (temp, "(%s)", $1.code) ; 
+axiom_func:   sentence                    { sprintf (temp, "(%s)", $1.code) ;
                                                $$.code = gen_code (temp) ;}
             | axiom_func sentence          { sprintf (temp,"%s\n %s", $1.code, $2.code) ; 
                                                 $$.code = gen_code (temp) ;}
@@ -119,10 +123,16 @@ axiom_func:   sentence                    { sprintf (temp, "(%s)", $1.code) ;
 
 
 
-sentence:   INTEGER IDENTIF '=' expression   ';'      { sprintf (temp, "(setq %s_%s %s)", fun_name,$2.code, $4.code) 
-                                                        sprintf(current_variables.identifier, "%s",$2.code); 
-                                               $$.code = gen_code (temp) ; }
-            |IDENTIF '=' expression   ';'      { sprintf (temp, "(setf %s_%s %s)", fun_name,$1.code, $3.code) ; 
+sentence:   INTEGER IDENTIF '=' expression   ';'      { 
+                                                        sprintf(temp, "(setq %s_%s %s)", fun_name,$2.code, $4.code);
+                                                        current_variables[i].identifier = $2.code;
+                                                        i = i + 1; 
+                                                        $$.code = gen_code (temp) ; }
+            |IDENTIF '=' expression   ';'      {if(search_variable(current_variables,$1.code) == 0){
+                                                sprintf (temp, "(setf %s %s)", $1.code, $3.code) ;
+            } else{
+                sprintf (temp, "(setf %s_%s %s)", fun_name,$1.code, $3.code) ;
+            } 
                                                $$.code = gen_code (temp) ; }
             | PUTS '(' STRING ')'  ';'         {sprintf(temp,"(print \"%s\")", $3.code);
                                              $$.code = gen_code (temp) ;}
@@ -272,26 +282,30 @@ char *my_malloc (int nbytes)     // reserve n bytes of dynamic memory
     return p ;
 }
 
-local_variables * search_variable(char * name){
-    int i ;
-    t_keyword *sim ;
 
-    i = 0 ;
-    sim = keywords ;
-    while (sim [i].name != NULL) {
-	    if (strcmp (sim [i].name, symbol_name) == 0) {
-                                   // strcmp(a, b) returns == 0 if a==b  
-            return &(sim [i]) ;
-        }
-        i++ ;
+int search_variable(local_variables current_variables[], char *name) {
+    if (current_variables == NULL) {
+        return 0; // Array is NULL, so it's considered empty
     }
 
-    return NULL ;
+    for (int i = 0; i < 100; i++) {
+        if (current_variables[i].identifier != NULL && strcmp(current_variables[i].identifier, name) == 0) {
+            return 1; // Identifier found
+        }
+    }
+    return 0; // Identifier not found or array is empty
 }
 
-local_variables * search_variable(local_variables current_variables, char * name){
-
+void empty_array(local_variables current_variables[], int size) {
+    // Iterate over each element of the array
+    for (int i = 0; i < size; i++) {
+        // Set the identifier to NULL (assuming it's a string)
+        current_variables[i].identifier = NULL;
+        // Set other members to default values if needed
+        current_variables[i].val = 0; // For example, set integer members to 0
+    }
 }
+
 /***************************************************************************/
 /***************************** Keyword Section *****************************/
 /***************************************************************************/
