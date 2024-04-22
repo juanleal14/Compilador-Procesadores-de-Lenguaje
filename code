@@ -88,6 +88,8 @@ RECURSIVE_IDENTIF: IDENTIF ASSIGNMENT LAST_ASSIGNMENT {sprintf(temp,"(setq %s %s
             
 ASSIGNMENT:     '=' NUMBER               { sprintf (temp, "%d", $2.value) ;
                                                 $$.code = gen_code (temp) ;}
+            |   '[' NUMBER ']'          {sprintf(temp, "(make-array %d)", $2.value);
+                                        $$.code = gen_code(temp);}
             |                               { sprintf (temp, "0") ;
                                                 $$.code = gen_code (temp) ;}
             ;
