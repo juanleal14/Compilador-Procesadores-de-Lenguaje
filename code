@@ -137,8 +137,10 @@ sentence:   INTEGER IDENTIF '=' expression   ';'      {
                                                 sprintf (temp, "(setf %s %s)", $1.code, $3.code) ;
             } else{
                 sprintf (temp, "(setf %s_%s %s)", fun_name,$1.code, $3.code) ;
-            } 
-                                               $$.code = gen_code (temp) ; }
+            }
+                                                    $$.code = gen_code (temp) ; } 
+            | IDENTIF '[' NUMBER ']' '=' expression  ';' {sprintf(temp,"(setf (aref %s %d) %s)", $1.code, $3.value, $6.code);
+                                                    $$.code = gen_code (temp) ;}
             | PUTS '(' STRING ')'  ';'         {sprintf(temp,"(print \"%s\")", $3.code);
                                              $$.code = gen_code (temp) ;}
             | PRINTF '(' STRING ',' ELEM_SEQ ')' ';' {sprintf(temp,"%s",$5.code);
@@ -172,6 +174,8 @@ RESTIF: ELSE '{' axiom_func '}'                                     {sprintf(tem
 ELEM_SEQ: expression RECURSIVITY_PRINTF     {sprintf(temp,"(prin1 %s) %s",$1.code,$2.code);
                                             $$.code = gen_code (temp) ;}
             | STRING RECURSIVITY_PRINTF     {sprintf(temp,"(prin1 %s) %s",$1.code,$2.code);
+                                            $$.code = gen_code (temp) ;}
+            | IDENTIF '[' NUMBER ']' RECURSIVITY_PRINTF       {sprintf(temp,"(prin1(aref %s %d)) %s",$1.code, $3.value, $5.code);
                                             $$.code = gen_code (temp) ;}
             ;
 RECURSIVITY_PRINTF: ',' ELEM_SEQ            {sprintf(temp,", %s",$2.code);
