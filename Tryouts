@@ -1,0 +1,2 @@
+Pruebas:
+cat test.c | ./trad4 | clisp
