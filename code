@@ -222,8 +222,11 @@ term:         operand                        { $$ = $1 ; }
                                                $$.code = gen_code (temp) ; }    
             ;
 
-operand:      IDENTIF                        { sprintf (temp, "%s", $1.code) ;
-                                               $$.code = gen_code (temp) ; }
+operand:      IDENTIF                        {if(search_variable(current_variables,$1.code) == 0){
+                                                sprintf (temp, "%s", $1.code) ;
+            } else{
+                                        sprintf (temp, "(%s_%s)", fun_name,$1.code);}
+                                                $$.code = gen_code (temp);}
             | NUMBER                         { sprintf (temp, "%d", $1.value) ;
                                                $$.code = gen_code (temp) ; }
             | '(' expression ')'             { $$ = $2 ; }
