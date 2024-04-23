@@ -34,7 +34,7 @@ typedef struct local_variables{
     char * identifier ;
     int val ;
 } local_variables;
-int i = 0;
+int counter = 0;
 struct local_variables current_variables[100];
 int search_variable(local_variables current_variables[], char *name);
 void empty_array(local_variables current_variables[], int size);
@@ -100,11 +100,14 @@ LAST_ASSIGNMENT: ',' RECURSIVE_IDENTIF              {sprintf(temp,"%s",$2.code);
                                                 $$.code = gen_code (temp) ;}
             ;
 
-function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); i = 0; empty_array(current_variables, 100);}'(' param ')' '{' axiom_func return_statement'}'  { printf("(defun %s (%s)%s %s)\n",$1.code, $4.code, $7.code, $8.code); } function_section { ; }
+function_section: IDENTIF {sprintf(fun_name,"%s",$1.code); counter = 0; empty_array(current_variables, 100);}'(' param ')' '{' axiom_func return_statement '}'  { printf("(defun %s (%s)%s %s)\n",$1.code, $4.code, $7.code, $8.code); } function_section { ; }
             |       { ; }
             ;
 return_statement:   RETURN expression ';' {sprintf(temp,"%s", $2.code);
                                             $$.code = gen_code(temp);}
+            |   /*lambda*/                            {strcpy(temp,"");
+                                                $$.code = gen_code (temp) ;}
+            ;
 param:      param_seq       { sprintf(temp,"%s", $1.code); 
                             $$.code = gen_code (temp) ;}
             |               {strcpy(temp,"");
@@ -118,45 +121,59 @@ rec_param:  ',' param_seq           { sprintf(temp,", %s", $2.code);
             |                       {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
-Main_declaration:  {sprintf(fun_name,"main");  i = 0; empty_array(current_variables, 100);} '(' ')' '{' axiom_func '}'     { printf ("(defun main ()\n%s)\n", $5.code) ;}
+Main_declaration:  {sprintf(fun_name,"main");  counter = 0; empty_array(current_variables, 100);} '(' ')' '{' axiom_func '}'     { printf ("(defun main ()\n%s)\n", $5.code) ;}
             ;
-axiom_func:   sentence                    { sprintf (temp, "%s", $1.code) ;
-                                               $$.code = gen_code (temp) ;}
-            | axiom_func sentence          { sprintf (temp,"%s\n %s", $1.code, $2.code) ; 
+axiom_func: sentence          { sprintf (temp,"%s", $1.code) ; 
+                                                $$.code = gen_code (temp) ;}
+            |    /*lambda*/            {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
 
 
 
-sentence:   INTEGER IDENTIF '=' expression   ';'      { 
-                                                        sprintf(temp, "(setq %s_%s %s)", fun_name,$2.code, $4.code);
-                                                        current_variables[i].identifier = $2.code;
-                                                        i = i + 1; 
-                                                        $$.code = gen_code (temp) ; }
-            | IDENTIF '=' expression   ';'      {if(search_variable(current_variables,$1.code) == 0){
-                                                sprintf (temp, "(setf %s %s)", $1.code, $3.code) ;
-            } else{
-                sprintf (temp, "(setf %s_%s %s)", fun_name,$1.code, $3.code) ;
-            }
+sentence:   INTEGER RECURSIVE_DEFINITION ';'  axiom_func { sprintf(temp,"%s %s",$2.code, $4.code);
+                                                           $$.code = gen_code(temp);}
+            | IDENTIF '=' expression   ';'      axiom_func {if(search_variable(current_variables,$1.code) == 0){
+                                                sprintf (temp, "(setf %s %s) %s", $1.code, $3.code, $5.code) ;
+                                                        } else{
+                                                        sprintf (temp, "(setf %s_%s %s) %s", fun_name,$1.code, $3.code, $5.code) ;
+                                                    }
                                                     $$.code = gen_code (temp) ; } 
-            | IDENTIF '[' NUMBER ']' '=' expression  ';' {sprintf(temp,"(setf (aref %s %d) %s)", $1.code, $3.value, $6.code);
+            | IDENTIF '[' NUMBER ']' '=' expression  ';' axiom_func {sprintf(temp,"(setf (aref %s %d) %s) %s", $1.code, $3.value, $6.code, $8.code);
                                                     $$.code = gen_code (temp) ;}
-            | PUTS '(' STRING ')'  ';'         {sprintf(temp,"(print \"%s\")", $3.code);
+            | PUTS '(' STRING ')'  ';'    axiom_func     {sprintf(temp,"(print \"%s\") %s", $3.code, $6.code);
                                              $$.code = gen_code (temp) ;}
-            | PRINTF '(' STRING ',' ELEM_SEQ ')' ';' {sprintf(temp,"%s",$5.code);
+            | PRINTF '(' STRING ',' ELEM_SEQ ')' ';' axiom_func {sprintf(temp,"%s %s",$5.code, $8.code);
                                                  $$.code = gen_code (temp) ;}
-            | WHILE '(' cond_expression ')' '{' axiom_func '}' {sprintf(temp,"(loop while %s do %s)", $3.code, $6.code);
+            | WHILE '(' cond_expression ')' '{' axiom_func '}' axiom_func {sprintf(temp,"(loop while %s do %s) %s", $3.code, $6.code, $8.code);
                                                             $$.code = gen_code(temp);}
-            | IF '(' cond_expression ')' '{' axiom_func '}'  RESTIF {sprintf(temp,"(if (%s)\n (progn %s)\n%s)",$3.code,$6.code,$8.code );
+            | IF '(' cond_expression ')' '{' axiom_func return_in_if '}'  RESTIF axiom_func {sprintf(temp,"(if (%s) (progn %s %s) %s %s)",$3.code,$6.code,$7.code, $9.code, $10.code);
                                                                     $$.code = gen_code(temp);}
-            | FOR '(' INTEGER IDENTIF '=' term  ';'  cond_expression ';' IDENTIF '=' IDENTIF operator term ')' '{' axiom_func '}' {if((strcmp($4.code,$10.code) == 0) && (strcmp($4.code,$12.code) == 0)){
-                                    sprintf(temp, "(loop while %s do %s %s = %s %s %s)", $8.code, $17.code, $4.code, $4.code,$13.code, $14.code);
+            | FOR '(' INTEGER IDENTIF '=' term  ';'  cond_expression ';' IDENTIF '=' IDENTIF operator term ')' '{' axiom_func '}' axiom_func {if((strcmp($4.code,$10.code) == 0) && (strcmp($4.code,$12.code) == 0)){
+                                    sprintf(temp, "(loop while %s do %s %s = %s %s %s) %s", $8.code, $17.code, $4.code, $4.code,$13.code, $14.code, $16.code);
                                                                                         $$.code = gen_code(temp);
                                                                     }else{
                                                                         printf("\n%s %s %s are not equal, semantic error\n", $4.code, $10.code, $12.code);
                                                                         }
-                                                                    } 
+                                                                    }
+            | IDENTIF '(' param_call ')'   ';'          {sprintf(temp, "(%s (%s))", $1.code, $3.code);
+                                                $$.code = gen_code(temp);}
             ;
+RECURSIVE_DEFINITION: IDENTIF {current_variables[counter].identifier = $1.code; counter = counter + 1;} DEFINITION LAST_DEFINITION {sprintf(temp,"(setq %s_%s %s) %s",fun_name, $1.code, $3.code, $4.code);
+                                                            $$.code = gen_code (temp) ;}
+            ;
+            
+DEFINITION:     '=' NUMBER               { sprintf (temp, "%d", $2.value) ;
+                                                $$.code = gen_code (temp) ;}
+            |                               { sprintf (temp, "0") ;
+                                                $$.code = gen_code (temp) ;}
+            ;
+
+LAST_DEFINITION: ',' RECURSIVE_DEFINITION              {sprintf(temp,"%s",$2.code);
+                                                            $$.code = gen_code (temp) ;}
+            |   {strcpy(temp,"");
+                                                $$.code = gen_code (temp) ;}
+            ; 
 operator: '+' {sprintf(temp,"+");
                 $$.code = gen_code(temp);}
         | '-' {sprintf(temp,"-");
@@ -166,11 +183,16 @@ operator: '+' {sprintf(temp,"+");
         | '/' {sprintf(temp,"/");
                 $$.code = gen_code(temp);}
         ;
-RESTIF: ELSE '{' axiom_func '}'                                     {sprintf(temp,"(progn %s)", $3.code);
+RESTIF: ELSE '{' axiom_func return_in_if '}'                                     {sprintf(temp,"(progn %s %s )", $3.code, $4.code);
                                                                     $$.code = gen_code(temp);}
         |                                                           {strcpy(temp,"");
                                                                     $$.code = gen_code(temp);}
         ;
+return_in_if: RETURN  expression ';' {sprintf(temp,"return_from %s %s", fun_name, $2.code);
+                                                        $$.code = gen_code(temp);}
+            |   /*lambda*/                            {strcpy(temp,"");
+                                                $$.code = gen_code (temp) ;}
+            ;
 ELEM_SEQ: expression RECURSIVITY_PRINTF     {sprintf(temp,"(prin1 %s) %s",$1.code,$2.code);
                                             $$.code = gen_code (temp) ;}
             | STRING RECURSIVITY_PRINTF     {sprintf(temp,"(prin1 %s) %s",$1.code,$2.code);
@@ -224,8 +246,8 @@ term:         operand                        { $$ = $1 ; }
 
 operand:      IDENTIF                        {if(search_variable(current_variables,$1.code) == 0){
                                                 sprintf (temp, "%s", $1.code) ;
-            } else{
-                                        sprintf (temp, "(%s_%s)", fun_name,$1.code);}
+                                                } else{
+                                                sprintf (temp, "%s_%s", fun_name,$1.code);}
                                                 $$.code = gen_code (temp);}
             | NUMBER                         { sprintf (temp, "%d", $1.value) ;
                                                $$.code = gen_code (temp) ; }
@@ -235,7 +257,7 @@ operand:      IDENTIF                        {if(search_variable(current_variabl
             ;
 param_call:      param_call_seq       { sprintf(temp,"%s", $1.code); 
                             $$.code = gen_code (temp) ;}
-            |               {strcpy(temp,"");
+            |                                   {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
 param_call_seq:  expression rec_param_call           { sprintf(temp,"%s %s", $1.code, $2.code); 
@@ -243,7 +265,7 @@ param_call_seq:  expression rec_param_call           { sprintf(temp,"%s %s", $1.
             ;
 rec_param_call:  ',' param_call_seq           { sprintf(temp,", %s", $2.code); 
                                                 $$.code = gen_code (temp) ;}
-            |                       {strcpy(temp,"");
+            |                                   {strcpy(temp,"");
                                                 $$.code = gen_code (temp) ;}
             ;
 cond_expression: expression AND expression       { sprintf (temp, "(and %s %s)", $1.code, $3.code) ;
@@ -314,8 +336,8 @@ int search_variable(local_variables current_variables[], char *name) {
         return 0; // Array is NULL, so it's considered empty
     }
 
-    for (int i = 0; i < 100; i++) {
-        if (current_variables[i].identifier != NULL && strcmp(current_variables[i].identifier, name) == 0) {
+    for (int j = 0; j < 100; j++) {
+        if (current_variables[j].identifier != NULL && strcmp(current_variables[j].identifier, name) == 0) {
             return 1; // Identifier found
         }
     }
@@ -324,11 +346,11 @@ int search_variable(local_variables current_variables[], char *name) {
 
 void empty_array(local_variables current_variables[], int size) {
     // Iterate over each element of the array
-    for (int i = 0; i < size; i++) {
+    for (int j = 0; j < size; j++) {
         // Set the identifier to NULL (assuming it's a string)
-        current_variables[i].identifier = NULL;
+        current_variables[j].identifier = NULL;
         // Set other members to default values if needed
-        current_variables[i].val = 0; // For example, set integer members to 0
+        current_variables[j].val = 0; // For example, set integer members to 0
     }
 }
 
