@@ -1,3 +1,5 @@
+/*LUCAS MONZÓN CASTAÑO JUAN LEAL ALIAGA
+  100473232 100473223*/
 %{                          // SECTION 1 Declarations for C-Bison
 #include <stdio.h>
 #include <ctype.h>            // tolower()
@@ -37,6 +39,7 @@ typedef struct s_attr {
 %token PRINT
 %token SETQ
 %token DEFUN
+%token PRIN1
 
 %right '='                    // last opertation to do 
 %left '+' '-'                 // lowest precedence
@@ -54,9 +57,27 @@ r_axiom:                                     { ; }
 
 sentence:   '(' SETQ IDENTIF expression ')'         { sprintf (temp, "variable %s \n%s %s !", $3.code, $4.code, $3.code) ; 
                                                $$.code = gen_code (temp) ; }
-            | '(' PRINT expression ')'                 { sprintf (temp, "%s .", $3.code) ;  
+            | '(' PRINT REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
                                                $$.code = gen_code (temp) ; }
-            | '(' DEFUN IDENTIF '(' /*params*/ ')' axiom ')'        { sprintf (temp, ": %s %s ;", $3.code, $6.code) ;  
+            | '(' DEFUN IDENTIF '(' /*params*/ ')' axiom_func ')'        { sprintf (temp, ": %s\n%s ;", $3.code, $6.code) ;  
+                                               $$.code = gen_code (temp) ; }
+            | '(' DEFUN MAIN '(' /*params*/ ')' axiom_func ')'        { sprintf (temp, ": main\n%s ;", $6.code) ;  
+                                               $$.code = gen_code (temp) ; }
+            | '(' IDENTIF ')'                   {sprintf(temp, "%s", $2.code);
+                                               $$.code = gen_code (temp) ; }
+            | '(' MAIN ')'                  {sprintf(temp, "%s", $2.code);
+                                               $$.code = gen_code (temp) ; }
+            | '(' PRIN1 REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
+                                                    $$.code = gen_code (temp) ; }
+            ;
+axiom_func: sentence axiom_func { sprintf (temp,"%s\n%s", $1.code, $2.code) ; 
+                                    $$.code = gen_code(temp);}
+            | /*lambda*/            { strcpy(temp,"");
+                                    $$.code = gen_code(temp);}
+            ;
+REST_PRINT: expression                 { sprintf (temp, "%s .", $1.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | STRING                    { sprintf (temp, ".\" %s \"", $1.code);
                                                $$.code = gen_code (temp) ; }
             ;
 expression:   term                           { $$ = $1 ; }
@@ -142,6 +163,7 @@ t_keyword keywords [] = {     // define the keywords
     "setq",         SETQ,
     "print",        PRINT,
     "defun",        DEFUN,
+    "prin1",        PRIN1,
     NULL,          0          // 0 to mark the end of the table
 } ;
 
