@@ -38,12 +38,31 @@ typedef struct s_attr {
 %token WHILE         // token for keyword while
 %token PRINT
 %token SETQ
+%token SETF
 %token DEFUN
 %token PRIN1
+%token LOOP
+%token DO
+%token PROGN
+%token IF
+%token MAKE_ARRAY
+%token AREF
 
-%right '='                    // last opertation to do 
+%token OR
+%token AND
+%token MOD
+%token DIFF
+%token NOT
+%token GTE
+%token LTE
+                    // last operation to do 
+%left OR
+%left AND
+%left '=' DIFF
+%left '>' '<' GTE LTE
 %left '+' '-'                 // lowest precedence
-%left '*' '/'                 // 
+%left '*' '/' MOD             // 
+%right NOT
 %left UNARY_SIGN              // highest precedence
 
 %%                            // Section 3 Grammar - Semantic Actions
@@ -55,7 +74,9 @@ r_axiom:                                     { ; }
             | axiom                          { ; }
             ;
 
-sentence:   '(' SETQ IDENTIF expression ')'         { sprintf (temp, "variable %s \n%s %s !", $3.code, $4.code, $3.code) ; 
+sentence:   '(' SETQ IDENTIF REST_SETQ ')'         { sprintf (temp, "variable %s\n%s", $3.code, $4.code) ; 
+                                               $$.code = gen_code (temp) ; }
+            | '(' SETF  REST_SETF ')'         { sprintf (temp, "%s",$3.code) ; 
                                                $$.code = gen_code (temp) ; }
             | '(' PRINT REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
                                                $$.code = gen_code (temp) ; }
@@ -63,12 +84,31 @@ sentence:   '(' SETQ IDENTIF expression ')'         { sprintf (temp, "variable %
                                                $$.code = gen_code (temp) ; }
             | '(' DEFUN MAIN '(' /*params*/ ')' axiom_func ')'        { sprintf (temp, ": main\n%s ;", $6.code) ;  
                                                $$.code = gen_code (temp) ; }
-            | '(' IDENTIF ')'                   {sprintf(temp, "%s", $2.code);
-                                               $$.code = gen_code (temp) ; }
             | '(' MAIN ')'                  {sprintf(temp, "%s", $2.code);
                                                $$.code = gen_code (temp) ; }
             | '(' PRIN1 REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
                                                     $$.code = gen_code (temp) ; }
+            | '(' LOOP WHILE expression DO axiom_func ')' {sprintf(temp,"begin %s while %s repeat", $4.code, $6.code);
+                                                            $$.code = gen_code(temp);}
+            | '(' IF expression '(' PROGN axiom_func ')'  REST_IF ')' {sprintf(temp,"%s if %s %s then",$3.code,$6.code,$8.code);
+                                                                        $$.code = gen_code(temp);}
+            | expression                             {sprintf(temp,"%s",$1.code);
+                                                    $$.code = gen_code(temp);} 
+            ;
+REST_SETQ: '(' MAKE_ARRAY  NUMBER ')'        {sprintf(temp,"%s %d cells allot", $0.code, $3.value);
+                                            $$.code = gen_code(temp);}
+            | NUMBER                        {sprintf(temp,"%d %s !", $1.value, $0.code);
+                                            $$.code = gen_code(temp);}
+            ;
+REST_SETF: '(' '(' AREF IDENTIF expression ')' expression ')' {sprintf(temp," %s %s %s @ cells + !", $7.code, $4.code, $5.code);
+                                                            $$.code = gen_code(temp);}
+            | IDENTIF expression                            {sprintf(temp,"%s %s !", $2.code, $1.code);
+                                                            $$.code = gen_code(temp);}
+            ;
+REST_IF:   '(' PROGN axiom_func ')'             {sprintf(temp, "else %s", $3.code);
+                                                $$.code = gen_code(temp);}
+            | /* lambda */                      { strcpy(temp,"");
+                                    $$.code = gen_code(temp);}
             ;
 axiom_func: sentence axiom_func { sprintf (temp,"%s\n%s", $1.code, $2.code) ; 
                                     $$.code = gen_code(temp);}
@@ -89,12 +129,32 @@ expression:   term                           { $$ = $1 ; }
                                                $$.code = gen_code (temp) ; }
             | '(' '/' expression  expression ')'     { sprintf (temp, "%s %s /", $3.code, $4.code) ;
                                                $$.code = gen_code (temp) ; }
+            | '(' AND expression  expression  ')'    { sprintf (temp, "%s %s and", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' OR expression  expression  ')'    { sprintf (temp, "%s %s or", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' NOT expression  expression ')'     { sprintf (temp, "%s %s 0=", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' DIFF expression  expression ')'     { sprintf (temp, "%s %s = 0=", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' '=' expression  expression  ')'    { sprintf (temp, "%s %s =", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' '<' expression  expression  ')'    { sprintf (temp, "%s %s <", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' LTE expression  expression ')'     { sprintf (temp, "%s %s <=", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' '>' expression  expression ')'     { sprintf (temp, "%s %s >", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }                                   
+            | '(' GTE expression  expression  ')'    { sprintf (temp, "%s %s >=", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
+            | '(' MOD expression  expression  ')'    { sprintf (temp, "%s %s mod", $3.code, $4.code) ;
+                                               $$.code = gen_code (temp) ; }
             ;
 
 term:         operand                        { $$ = $1 ; }                          
-            | '+' operand %prec UNARY_SIGN   { sprintf (temp, "(+ %s)", $2.code) ;
+            | '+' operand %prec UNARY_SIGN   { sprintf (temp, "%s", $2.code) ;
                                                $$.code = gen_code (temp) ; }
-            | '-' operand %prec UNARY_SIGN   { sprintf (temp, "(- %s)", $2.code) ;
+            | '-' operand %prec UNARY_SIGN   { sprintf (temp, "%s negate", $2.code) ;
                                                $$.code = gen_code (temp) ; }    
             ;
 
@@ -164,6 +224,21 @@ t_keyword keywords [] = {     // define the keywords
     "print",        PRINT,
     "defun",        DEFUN,
     "prin1",        PRIN1,
+    "do",           DO,
+    "loop",         LOOP,
+    "while",        WHILE,
+    "if",           IF,
+    "progn",        PROGN,
+    "and",          AND,
+    "or",           OR,
+    "not",          NOT,
+    "/=",           DIFF,
+    "<=",           LTE,
+    ">=",           GTE,
+    "mod",          MOD,
+    "setf",         SETF,
+    "make_array",   MAKE_ARRAY,
+    "aref",         AREF,
     NULL,          0          // 0 to mark the end of the table
 } ;
 
