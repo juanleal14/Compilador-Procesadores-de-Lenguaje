@@ -67,24 +67,24 @@ typedef struct s_attr {
 
 %%                            // Section 3 Grammar - Semantic Actions
 
-axiom:        sentence                    { printf ("%s\n", $1.code) ; }
-                r_axiom                      { ; }
+axiom:  '(' declaration_section   function_section  { ; }
+;
+declaration_section:  SETQ IDENTIF REST_SETQ ')'   '('       { printf ("variable %s\n%s", $2.code, $3.code);} declaration_section { ; }
+                    |    /* lambda */       { ; }
+                    ;
+function_section:  DEFUN IDENTIF '('  ')' axiom_func ')'  '('       { printf (": %s\n%s; ", $2.code, $5.code) ;} function_section { ; }
+            |   DEFUN MAIN '('  ')' axiom_func ')'   '(' MAIN ')'      { printf ("\n: main\n%s ;\nmain\n", $5.code) ;}
             ;
-r_axiom:                                     { ; }
-            | axiom                          { ; }
-            ;
+/*Main_declaration: '(' DEFUN MAIN '('  ')' axiom_func ')'        { printf (": main\n%s ;", $6.code) ;}
+                ;*/
 
+/*Main_Call: | '(' MAIN ')'                  {printf("%s", $2.code);}
+            ;*/
 sentence:   '(' SETQ IDENTIF REST_SETQ ')'         { sprintf (temp, "variable %s\n%s", $3.code, $4.code) ; 
                                                $$.code = gen_code (temp) ; }
             | '(' SETF  REST_SETF ')'         { sprintf (temp, "%s",$3.code) ; 
                                                $$.code = gen_code (temp) ; }
             | '(' PRINT REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
-                                               $$.code = gen_code (temp) ; }
-            | '(' DEFUN IDENTIF '(' /*params*/ ')' axiom_func ')'        { sprintf (temp, ": %s\n%s ;", $3.code, $6.code) ;  
-                                               $$.code = gen_code (temp) ; }
-            | '(' DEFUN MAIN '(' /*params*/ ')' axiom_func ')'        { sprintf (temp, ": main\n%s ;", $6.code) ;  
-                                               $$.code = gen_code (temp) ; }
-            | '(' MAIN ')'                  {sprintf(temp, "%s", $2.code);
                                                $$.code = gen_code (temp) ; }
             | '(' PRIN1 REST_PRINT ')'          {sprintf(temp, "%s", $3.code);
                                                     $$.code = gen_code (temp) ; }
@@ -95,14 +95,14 @@ sentence:   '(' SETQ IDENTIF REST_SETQ ')'         { sprintf (temp, "variable %s
             | expression                             {sprintf(temp,"%s",$1.code);
                                                     $$.code = gen_code(temp);} 
             ;
-REST_SETQ: '(' MAKE_ARRAY  NUMBER ')'        {sprintf(temp,"%s %d cells allot", $0.code, $3.value);
+REST_SETQ: '(' MAKE_ARRAY  NUMBER ')'        {sprintf(temp,"%s %d cells allot ", $0.code, $3.value);
                                             $$.code = gen_code(temp);}
-            | NUMBER                        {sprintf(temp,"%d %s !", $1.value, $0.code);
+            | NUMBER                        {sprintf(temp,"%d %s ! ", $1.value, $0.code);
                                             $$.code = gen_code(temp);}
             ;
-REST_SETF: '(' '(' AREF IDENTIF expression ')' expression ')' {sprintf(temp," %s %s %s @ cells + !", $7.code, $4.code, $5.code);
+REST_SETF: '(' '(' AREF IDENTIF expression ')' expression ')' {sprintf(temp," %s %s %s @ cells + ! ", $7.code, $4.code, $5.code);
                                                             $$.code = gen_code(temp);}
-            | IDENTIF expression                            {sprintf(temp,"%s %s !", $2.code, $1.code);
+            | IDENTIF expression                            {sprintf(temp,"%s %s ! ", $2.code, $1.code);
                                                             $$.code = gen_code(temp);}
             ;
 REST_IF:   '(' PROGN axiom_func ')'             {sprintf(temp, "else %s", $3.code);
