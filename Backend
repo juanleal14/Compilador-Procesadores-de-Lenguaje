@@ -69,10 +69,10 @@ typedef struct s_attr {
 
 axiom:  '(' declaration_section   function_section  { ; }
 ;
-declaration_section:  SETQ IDENTIF REST_SETQ ')'   '('       { printf ("variable %s\n%s", $2.code, $3.code);} declaration_section { ; }
+declaration_section:  SETQ IDENTIF REST_SETQ ')'   { printf ("variable %s\n%s", $2.code, $3.code);} '('        declaration_section { ; }
                     |    /* lambda */       { ; }
                     ;
-function_section:  DEFUN IDENTIF '('  ')' axiom_func ')'  '('       { printf (": %s\n%s; ", $2.code, $5.code) ;} function_section { ; }
+function_section:  DEFUN IDENTIF '('  ')' axiom_func ')' { printf (": %s\n%s; ", $2.code, $5.code) ;} '('        function_section { ; }
             |   DEFUN MAIN '('  ')' axiom_func ')'   '(' MAIN ')'      { printf ("\n: main\n%s ;\nmain\n", $5.code) ;}
             ;
 /*Main_declaration: '(' DEFUN MAIN '('  ')' axiom_func ')'        { printf (": main\n%s ;", $6.code) ;}
@@ -133,7 +133,7 @@ expression:   term                           { $$ = $1 ; }
                                                $$.code = gen_code (temp) ; }
             | '(' OR expression  expression  ')'    { sprintf (temp, "%s %s or", $3.code, $4.code) ;
                                                $$.code = gen_code (temp) ; }
-            | '(' NOT expression  expression ')'     { sprintf (temp, "%s %s 0=", $3.code, $4.code) ;
+            | '(' NOT expression  ')'     { sprintf (temp, "%s  0=", $3.code) ;
                                                $$.code = gen_code (temp) ; }
             | '(' DIFF expression  expression ')'     { sprintf (temp, "%s %s = 0=", $3.code, $4.code) ;
                                                $$.code = gen_code (temp) ; }
