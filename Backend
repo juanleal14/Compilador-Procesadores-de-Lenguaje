@@ -96,7 +96,7 @@ REST_SETQ: '(' MAKE_ARRAY  NUMBER ')'        {sprintf(temp,"%s %d cells allot ",
             | NUMBER                        {sprintf(temp,"%d %s ! ", $1.value, $0.code);
                                             $$.code = gen_code(temp);}
             ;
-REST_SETF:   '(' AREF  IDENTIF expression ')' expression  {sprintf(temp," %s %s %s @ cells + ! ", $6.code, $3.code, $4.code);
+REST_SETF:   '(' AREF  IDENTIF expression ')' expression  {sprintf(temp," %s %s %s cells + ! ", $6.code, $3.code, $4.code);
                                                             $$.code = gen_code(temp);}
             | IDENTIF expression                            {sprintf(temp,"%s %s ! ", $2.code, $1.code);
                                                             $$.code = gen_code(temp);}
@@ -158,9 +158,9 @@ operand:      IDENTIF                        { sprintf (temp, "%s @", $1.code) ;
                                                $$.code = gen_code (temp) ; }
             | NUMBER                         { sprintf (temp, "%d", $1.value) ;
                                                $$.code = gen_code (temp) ; }
-            | '(' AREF IDENTIF expression ')' {sprintf(temp, "%s %s @ cells", $3.code, $4.code);
+            | '(' AREF IDENTIF expression ')' {sprintf(temp, "%s %s cells + @", $3.code, $4.code);
                                             $$.code = gen_code(temp);}
-            | '(' expression ')'             { $$ = $2 ; }
+            | '(' IDENTIF ')'             { $$ = $2 ; }
             ;
 
 
