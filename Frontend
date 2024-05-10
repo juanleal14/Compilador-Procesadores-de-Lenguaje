@@ -133,19 +133,15 @@ axiom_func: sentence          { sprintf (temp,"%s", $1.code) ;
 
 sentence:   INTEGER RECURSIVE_DEFINITION ';'  axiom_func { sprintf(temp,"%s %s",$2.code, $4.code);
                                                            $$.code = gen_code(temp);}
-            | INTEGER IDENTIF '[' NUMBER ']'     ';'       axiom_func {if(search_variable(current_variables,$1.code) == 0){
-                sprintf(temp, "(setq %s (make-array %d)) %s", $2.code, $4.value, $7.code);}
-                                                            else{
-                                                              sprintf(temp, "(setq %s_%s (make-array %d)) %s", fun_name, $2.code, $4.value, $7.code);  
-                                                            }
-                                                                $$.code = gen_code(temp);}
             | IDENTIF '=' expression   ';'      axiom_func {if(search_variable(current_variables,$1.code) == 0){
                                                 sprintf (temp, "(setf %s %s) %s", $1.code, $3.code, $5.code) ;
                                                         } else{
                                                         sprintf (temp, "(setf %s_%s %s) %s", fun_name,$1.code, $3.code, $5.code) ;
                                                     }
                                                     $$.code = gen_code (temp) ; } 
-            | IDENTIF '[' expression ']' '=' expression  ';' axiom_func {sprintf(temp,"(setf (aref %s %s) %s) %s", $1.code, $3.code, $6.code, $8.code);
+            | IDENTIF '[' expression ']' '=' expression  ';' axiom_func {if(search_variable(current_variables,$1.code) == 0){
+                sprintf(temp,"(setf (aref %s %s) %s) %s", $1.code, $3.code, $6.code, $8.code);
+            }else{ sprintf(temp,"(setf (aref %s_%s %s) %s) %s", fun_name,$1.code, $3.code, $6.code, $8.code); }
                                                     $$.code = gen_code (temp) ;}
             | PUTS '(' STRING ')'  ';'    axiom_func     {sprintf(temp,"(print \"%s\") %s", $3.code, $6.code);
                                              $$.code = gen_code (temp) ;}
@@ -155,7 +151,7 @@ sentence:   INTEGER RECURSIVE_DEFINITION ';'  axiom_func { sprintf(temp,"%s %s",
                                                             $$.code = gen_code(temp);}
             | IF '(' cond_expression ')' '{' axiom_func return_in_if '}'  RESTIF axiom_func {sprintf(temp,"(if %s (progn %s %s) %s )%s",$3.code,$6.code,$7.code, $9.code, $10.code);
                                                                     $$.code = gen_code(temp);}
-            | FOR '('  IDENTIF '=' term  ';'  cond_expression ';' expression ')' '{' axiom_func '}' axiom_func {if(search_variable(current_variables,$1.code) == 0){
+            | FOR '('  IDENTIF '=' term  ';'  cond_expression ';' expression ')' '{' axiom_func '}' axiom_func {if(search_variable(current_variables,$3.code) == 0){
                                     sprintf(temp, "(setf %s %s)(loop while %s do %s %s) %s", $3.code, $5.code, $7.code, $12.code, $9.code,$14.code);
                                                                     }else{
                                                                             sprintf(temp, "(setf %s_%s %s)(loop while %s do %s %s) %s", fun_name, $3.code, $5.code, $7.code, $12.code, $9.code,$14.code);
@@ -171,6 +167,8 @@ RECURSIVE_DEFINITION: IDENTIF {current_variables[counter].identifier = $1.code; 
             
 DEFINITION:     '=' NUMBER               { sprintf (temp, "%d", $2.value) ;
                                                 $$.code = gen_code (temp) ;}
+            |   '[' NUMBER ']'          {sprintf(temp, "(make-array %d)", $2.value);
+                                        $$.code = gen_code(temp);}
             |     /* lambda */                          { sprintf (temp, "0") ;
                                                 $$.code = gen_code (temp) ;}
             ;
@@ -223,7 +221,7 @@ expression:   term                           { $$ = $1 ; }
                                                $$.code = gen_code (temp) ; }
             | expression OR expression          { sprintf (temp, "(or %s %s)", $1.code, $3.code) ;
                                                $$.code = gen_code (temp) ; }
-            | expression '!' expression         { sprintf (temp, "(not %s %s )", $1.code, $3.code) ;
+            | '!' expression                    { sprintf (temp, "(not %s)", $2.code) ;
                                                $$.code = gen_code (temp) ; }
             | expression EQ expression          { sprintf (temp, "(= %s %s)", $1.code, $3.code) ;
                                                $$.code = gen_code (temp) ; }
@@ -264,7 +262,9 @@ operand:      IDENTIF                        {if(search_variable(current_variabl
             | '(' expression ')'             { $$ = $2 ; }
             | IDENTIF '(' param_call ')'             {sprintf(temp, "(%s %s)", $1.code, $3.code);
                                                 $$.code = gen_code(temp);}
-            | IDENTIF '[' expression ']'   {sprintf(temp, "(aref %s %s)", $1.code, $3.code);
+            | IDENTIF '[' expression ']'   {if(search_variable(current_variables,$1.code) == 0){
+                sprintf(temp, "(aref %s %s)", $1.code, $3.code);
+            }else{                sprintf(temp, "(aref %s_%s %s)", fun_name,$1.code, $3.code);}
                                                 $$.code = gen_code(temp);}
             ;
 param_call:      param_call_seq       { sprintf(temp,"%s", $1.code); 
